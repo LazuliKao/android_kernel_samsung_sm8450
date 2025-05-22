@@ -198,7 +198,47 @@ function fix_driver_check() {
     fi
     echo "[+] Driver fix patch applied successfully."
 }
+
+function build_container() {
+    echo "[+] Building Docker container for kernel compilation..."
+    
+    # Check if Docker is installed
+    if ! command -v docker &> /dev/null; then
+        echo "[-] Docker is not installed. Please install Docker first."
+        echo "    Visit https://docs.docker.com/engine/install/ for installation instructions."
+        return 1
+    fi
+    
+    # Build Docker image from Dockerfile
+    cd "$build_root"
+    docker build -t sm8450-kernel-builder .
+    
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to build Docker image."
+        return 1
+    fi
+    
+    echo "[+] Docker image 'sm8450-kernel-builder' built successfully."
+    echo "[+] You can now use the container to build the kernel."
+    echo ""
+    echo "To run a one-time container and build the kernel, use:"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" sm8450-kernel-builder /workspace/build.sh"
+    echo ""
+    echo "This will mount your current directory to /workspace in the container"
+    echo "and run the build.sh script inside the container."
+    echo ""
+    echo "If you want to open a shell in the container for manual operations:"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" sm8450-kernel-builder /bin/bash"
+    
+    return 0
+}
+
 function main() {
+    if [ "$1" = "container" ]; then
+        build_container
+        return $?
+    fi
+    
     clean
     prepare_source
     add_kernelsu_next
@@ -209,6 +249,15 @@ function main() {
     echo "[+] All done. You can now build the kernel."
     echo "[+] Please 'cd $kernel_root'"
     echo "[+] Run the build script with ./build.sh"
+    echo ""
+    echo "To build using Docker container instead:"
+    echo "./build.sh container"
 }
 
-main
+# If the first argument is "container", only build the container
+if [ "$1" = "container" ]; then
+    build_container
+    exit $?
+else
+    main
+fi
