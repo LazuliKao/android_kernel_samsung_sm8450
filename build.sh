@@ -4,6 +4,7 @@ build_root=$(pwd)
 kernel_root="$build_root/kernel_platform/common"
 kernel_su_next_branch="next-susfs-dev"
 susfs_branch="gki-android12-5.10"
+
 function clean() {
     rm -rf "$kernel_root"
 }
@@ -184,6 +185,18 @@ CONFIG_TRIM_UNUSED_KSYMS=n
 CONFIG_KSU_SUSFS=n
 EOF
     echo "[+] Kernel config updated successfully."
+    echo "[+] Kernel config file: $kernel_root/arch/arm64/configs/gki_defconfig"
+    echo "[+] Copying stock boot.img to the kernel source..."
+    local stock_boot_img="$kernel_root/stock"
+    if [ ! -d "$stock_boot_img" ]; then
+        mkdir "$stock_boot_img"
+    fi
+    cp boot.img "$stock_boot_img"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to copy stock boot.img."
+        exit 1
+    fi
+    echo "[+] Stock boot.img copied successfully."
 }
 
 function fix_driver_check() {
