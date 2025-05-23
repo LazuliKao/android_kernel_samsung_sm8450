@@ -155,3 +155,4 @@ main() {
     build_kernel
     echo -e "\n[INFO]: BUILD FINISHED..!"
 }
+main

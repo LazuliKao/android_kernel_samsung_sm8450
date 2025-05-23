@@ -1,7 +1,7 @@
 #!/bin/bash
 official_source="SM-S9080_CHN_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
-kernel_root="$build_root/kernel_platform/common"
+kernel_root="$build_root/kernel_source"
 kernel_su_next_branch="next-susfs-dev"
 susfs_branch="gki-android12-5.10"
 
@@ -9,19 +9,23 @@ function clean() {
     rm -rf "$kernel_root"
 }
 function prepare_source() {
-    if [ ! -f "$official_source" ]; then
-        echo "Please download the official source code from Samsung Open Source Release Center."
-        echo "link: https://opensource.samsung.com/uploadSearch?searchValue=SM-S92"
-        exit 1
-    fi
     if [ ! -d "$kernel_root" ]; then
         # extract the official source code
         echo "[+] Extracting official source code..."
-        unzip -o -q "$official_source" "Kernel.tar.gz"
+        if [ ! -f "Kernel.tar.gz" ]; then
+            echo "Kernel.tar.gz not found. Extracting from $official_source..."
+            if [ ! -f "$official_source" ]; then
+                echo "Please download the official source code from Samsung Open Source Release Center."
+                echo "link: https://opensource.samsung.com/uploadSearch?searchValue=SM-S90"
+                exit 1
+            fi
+            unzip -o -q "$official_source" "Kernel.tar.gz"
+        fi
         # extract the kernel source code
         local kernel_source_tar="Kernel.tar.gz"
         echo "[+] Extracting kernel source code..."
-        tar -xzf "$kernel_source_tar"
+        mkdir -p "$kernel_root"
+        tar -xzf "$kernel_source_tar" -C "$kernel_root" --strip-components=3 "./kernel_platform/common"
         if [ ! -d "$kernel_root" ]; then
             echo "Kernel source code not found. Please check the official source code."
             exit 1
@@ -95,7 +99,7 @@ function add_susfs() {
     else
         echo "[-] Warning: $susfs_dir/kernel_patches/fs directory not found"
     fi
-    
+
     if [ -d "$susfs_dir/kernel_patches/include" ]; then
         cp -r "$susfs_dir/kernel_patches/include/"* "$kernel_root/include/"
     else
@@ -127,11 +131,16 @@ function add_build_script() {
 
 function extract_kernel_config() {
     cd "$build_root"
+    local tools_dir="$build_root/tools"
+    if [ ! -d "$tools_dir" ]; then
+        mkdir "$tools_dir"
+    fi
+    local kptools="$tools_dir/kptools-linux"
     # if kptools-linux not exists, download it
-    if [ ! -f ./kptools-linux ]; then
+    if [ ! -f "$kptools" ]; then
         echo "kptools-linux not found, downloading..."
-        wget https://github.com/bmax121/KernelPatch/releases/latest/download/kptools-linux -O ./kptools-linux
-        chmod +x ./kptools-linux
+        wget https://github.com/bmax121/KernelPatch/releases/latest/download/kptools-linux -O "$kptools"
+        chmod +x "$kptools"
     fi
     if [ -f "boot.img.lz4" ]; then
         # use lz4 to decompress it
@@ -149,11 +158,11 @@ function extract_kernel_config() {
     fi
     echo "[+] boot.img decompressed successfully."
     # extract official kernel config from boot.img
-    ./kptools-linux -i boot.img -f >boot.img.build.conf
+    "$kptools" -i boot.img -f >boot.img.build.conf
     echo "[+] Kernel config extracted successfully."
     # see the kernel version of official kernel
     echo "[+] Kernel version of official kernel:"
-    ./kptools-linux -i boot.img -d | head -n 3
+    "$kptools" -i boot.img -d | head -n 3
     # copy the extracted kernel config to the kernel source and build using it
     echo "[+] Copying kernel config to the kernel source..."
     tail -n +2 boot.img.build.conf >"$kernel_root/arch/arm64/configs/gki_defconfig"
@@ -214,23 +223,23 @@ function fix_driver_check() {
 
 function build_container() {
     echo "[+] Building Docker container for kernel compilation..."
-    
+
     # Check if Docker is installed
-    if ! command -v docker &> /dev/null; then
+    if ! command -v docker &>/dev/null; then
         echo "[-] Docker is not installed. Please install Docker first."
         echo "    Visit https://docs.docker.com/engine/install/ for installation instructions."
         return 1
     fi
-    
+
     # Build Docker image from Dockerfile
     cd "$build_root"
     docker build -t sm8450-kernel-builder .
-    
+
     if [ $? -ne 0 ]; then
         echo "[-] Failed to build Docker image."
         return 1
     fi
-    
+
     echo "[+] Docker image 'sm8450-kernel-builder' built successfully."
     echo "[+] You can now use the container to build the kernel."
     echo ""
@@ -242,7 +251,7 @@ function build_container() {
     echo ""
     echo "If you want to open a shell in the container for manual operations:"
     echo "docker run --rm -it -v \"$kernel_root:/workspace\" sm8450-kernel-builder /bin/bash"
-    
+
     return 0
 }
 
@@ -251,7 +260,7 @@ function main() {
         build_container
         return $?
     fi
-    
+
     clean
     prepare_source
     add_kernelsu_next
