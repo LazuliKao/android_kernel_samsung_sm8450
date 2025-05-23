@@ -95,7 +95,7 @@ function repack_stock_img() {
     fi
     # local image="$output_kernel_build/boot.img"
     # cp "$stock_boot_img" "$image"
-
+    local output_kernel_build_tools="$build_dir/tools"
     # download magiskboot
     local magiskboot="$output_kernel_build_tools/magiskboot"
     if [ ! -f "$magiskboot" ]; then

@@ -13,7 +13,7 @@ function prepare_source() {
         # extract the official source code
         echo "[+] Extracting official source code..."
         if [ ! -f "Kernel.tar.gz" ]; then
-            echo "Kernel.tar.gz not found. Extracting from $official_source..."
+            echo "[+] Kernel.tar.gz not found. Extracting from $official_source..."
             if [ ! -f "$official_source" ]; then
                 echo "Please download the official source code from Samsung Open Source Release Center."
                 echo "link: https://opensource.samsung.com/uploadSearch?searchValue=SM-S90"
