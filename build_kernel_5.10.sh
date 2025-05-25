@@ -8,6 +8,7 @@ TARGET_DEFCONFIG=${1:-gki_defconfig}
 
 function prepare_toolchain() {
     # Install the requirements for building the kernel when running the script for the first time
+    local TOOLCHAIN=$(realpath "../toolchains")
     if [ ! -f ".requirements" ]; then
         sudo apt update && sudo apt install -y git device-tree-compiler lz4 xz-utils zlib1g-dev openjdk-17-jdk gcc g++ python3 python-is-python3 p7zip-full android-sdk-libsparse-utils erofs-utils \
             default-jdk git gnupg flex bison gperf build-essential zip curl libc6-dev libncurses-dev libx11-dev libreadline-dev libgl1 libgl1-mesa-dev \
@@ -16,32 +17,32 @@ function prepare_toolchain() {
     fi
 
     # Create necessary directories
-    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" "${HOME}/toolchains"
+    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" "$TOOLCHAIN"
 
     # init clang-r416183b
-    if [ ! -d "${HOME}/toolchains/clang-r416183b" ]; then
+    if [ ! -d "$TOOLCHAIN/clang-r416183b" ]; then
         echo -e "\n[INFO] Cloning Clang-r416183b...\n"
-        mkdir -p "${HOME}/toolchains/clang-r416183b" && cd "${HOME}/toolchains/clang-r416183b"
+        mkdir -p "$TOOLCHAIN/clang-r416183b" && cd "$TOOLCHAIN/clang-r416183b"
         curl -LO "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r416183b.tar.gz"
         tar -xf clang-r416183b.tar.gz && rm clang-r416183b.tar.gz
         cd "${KERNEL_ROOT}"
     fi
 
     # init arm gnu toolchain
-    if [ ! -d "${HOME}/toolchains/gcc" ]; then
+    if [ ! -d "$TOOLCHAIN/gcc" ]; then
         echo -e "\n[INFO] Cloning ARM GNU Toolchain\n"
-        mkdir -p "${HOME}/toolchains/gcc" && cd "${HOME}/toolchains/gcc"
+        mkdir -p "$TOOLCHAIN/gcc" && cd "$TOOLCHAIN/gcc"
         curl -LO "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz"
         tar -xf arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
         cd "${KERNEL_ROOT}"
     fi
     # Export toolchain paths
-    export PATH="${PATH}:${HOME}/toolchains/clang-r416183b/bin"
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/toolchains/clang-r416183b/lib64"
+    export PATH="${PATH}:$TOOLCHAIN/clang-r416183b/bin"
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$TOOLCHAIN/clang-r416183b/lib64"
 
     # Set cross-compile environment variables
-    export BUILD_CROSS_COMPILE="${HOME}/toolchains/gcc/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-"
-    export BUILD_CC="${HOME}/toolchains/clang-r416183b/bin/clang"
+    export BUILD_CROSS_COMPILE="$TOOLCHAIN/gcc/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-"
+    export BUILD_CC="$TOOLCHAIN/clang-r416183b/bin/clang"
 }
 function prepare_config() {
     if [ "$LTO" == "thin" ]; then
