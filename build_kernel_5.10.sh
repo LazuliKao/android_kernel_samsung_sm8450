@@ -17,25 +17,8 @@ function prepare_toolchain() {
     fi
 
     # Create necessary directories
-    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" "$TOOLCHAIN"
+    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" 
 
-    # init clang-r416183b
-    if [ ! -d "$TOOLCHAIN/clang-r416183b" ]; then
-        echo -e "\n[INFO] Cloning Clang-r416183b...\n"
-        mkdir -p "$TOOLCHAIN/clang-r416183b" && cd "$TOOLCHAIN/clang-r416183b"
-        curl -LO "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r416183b.tar.gz"
-        tar -xf clang-r416183b.tar.gz && rm clang-r416183b.tar.gz
-        cd "${KERNEL_ROOT}"
-    fi
-
-    # init arm gnu toolchain
-    if [ ! -d "$TOOLCHAIN/gcc" ]; then
-        echo -e "\n[INFO] Cloning ARM GNU Toolchain\n"
-        mkdir -p "$TOOLCHAIN/gcc" && cd "$TOOLCHAIN/gcc"
-        curl -LO "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz"
-        tar -xf arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
-        cd "${KERNEL_ROOT}"
-    fi
     # Export toolchain paths
     export PATH="${PATH}:$TOOLCHAIN/clang-r416183b/bin"
     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$TOOLCHAIN/clang-r416183b/lib64"
@@ -154,6 +137,7 @@ main() {
     prepare_toolchain
     prepare_config
     build_kernel
+    repack_stock_img
     echo -e "\n[INFO]: BUILD FINISHED..!"
 }
 main

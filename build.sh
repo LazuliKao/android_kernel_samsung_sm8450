@@ -4,7 +4,7 @@ build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 kernel_su_next_branch="next-susfs"
 susfs_branch="gki-android12-5.10"
-
+toolchains_root="$build_root/toolchains"
 function clean() {
     rm -rf "$kernel_root"
 }
@@ -40,7 +40,28 @@ _set_or_add_config() {
         echo "Added $key=$value to $custom_config_file"
     fi
 }
-
+function prepare_toolchains() {
+    mkdir -p "$toolchains_root"
+    # init clang-r416183b
+    if [ ! -d "$toolchains_root/clang-r416183b" ]; then
+        echo -e "\n[INFO] Cloning Clang-r416183b...\n"
+        mkdir -p "$toolchains_root/clang-r416183b"
+        cd "$toolchains_root/clang-r416183b"
+        curl -LO "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r416183b.tar.gz"
+        tar -xf clang-r416183b.tar.gz
+        rm clang-r416183b.tar.gz
+        cd - >/dev/null
+    fi
+    # init arm gnu toolchain
+    if [ ! -d "$toolchains_root/gcc" ]; then
+        echo -e "\n[INFO] Cloning ARM GNU Toolchain\n"
+        mkdir -p "$toolchains_root/gcc"
+        cd "$toolchains_root/gcc"
+        curl -LO "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz"
+        tar -xf arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
+        cd - >/dev/null
+    fi
+}
 function prepare_source() {
     if [ ! -d "$kernel_root" ]; then
         # extract the official source code
@@ -247,7 +268,7 @@ function fix_samsung_securities() {
 }
 function add_build_script() {
     echo "[+] Adding build script..."
-    cp "$build_root/build_kernel_6.1.sh" "$kernel_root/build.sh"
+    cp "$build_root/build_kernel_5.10.sh" "$kernel_root/build.sh"
     sed -i "s/gki_defconfig/$custom_config_name/" "$kernel_root/build.sh"
     chmod +x "$kernel_root/build.sh"
     echo "[+] Build script added successfully."
@@ -293,6 +314,7 @@ function main() {
     fi
 
     clean
+    prepare_toolchains
     prepare_source
     extract_kernel_config
     add_kernelsu_next
