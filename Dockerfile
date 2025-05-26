@@ -20,5 +20,8 @@ RUN apt-get update && apt-get install -y wget curl git device-tree-compiler lz4 
 # Set working directory
 WORKDIR /workspace
 
+# fix git safe directory issue
+RUN git config --global --add safe.directory '*'
+
 # Set default command
 CMD ["/bin/bash"]
