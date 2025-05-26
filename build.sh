@@ -114,7 +114,7 @@ function extract_kernel_config() {
     fi
     if [ -f "boot.img.lz4" ]; then
         # use lz4 to decompress it
-        lz4 -d boot.img.lz4 boot.img
+        lz4 -d -f boot.img.lz4 boot.img
     else
         if [ -f "boot.img" ]; then
             echo "boot.img already exists, skipping decompression."
