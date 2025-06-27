@@ -330,3 +330,9 @@ add_susfs_prepare() {
         cd - >/dev/null
     fi
 }
+
+fix_callsyms_for_lkm() {
+    echo "[+] Adding CONFIG_KALLSYMS for LKM..."
+    _set_or_add_config CONFIG_KALLSYMS y
+    _set_or_add_config CONFIG_KALLSYMS_ALL y
+}
