@@ -294,6 +294,9 @@ add_susfs_prepare() {
         exit 1
     fi
     echo "[+] SuSFS4ksu repository cloned successfully."
+    local module_prop="$susfs_dir/ksu_module_susfs/module.prop"
+    local version=$(grep -oP 'version=v?\K[0-9.]+(?=)' "$module_prop")
+    echo "[+] SuSFS version: $version"
     echo "[+] Copying SuSFS source code..."
     cp "$susfs_dir/kernel_patches/50_add_susfs_in_$susfs_branch.patch" "$kernel_root"
     if [ -d "$susfs_dir/kernel_patches/fs" ]; then
@@ -315,7 +318,12 @@ add_susfs_prepare() {
         echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
         prepare_wild_patches
         cd "$kernel_root/KernelSU-Next"
-        if ! _apply_patch "wild_kernels/next/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"; then
+        local patch_file="0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"
+        if [[ "$version" < "1.5.8" ]]; then
+            echo "[-] Warning: SusFS version is less than 1.5.8, using old patch file."
+            patch_file="0001-kernel-implement-susfs-v1.5.5-v1.5.7-KSUN-v1.0.8.patch"
+        fi
+        if ! _apply_patch "wild_kernels/next/$patch_file"; then
             echo "[-] Failed to apply SuSFS integration patch"
             exit 1
         fi
