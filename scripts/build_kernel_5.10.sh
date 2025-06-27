@@ -17,7 +17,7 @@ function prepare_toolchain() {
     fi
 
     # Create necessary directories
-    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" 
+    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build"
 
     # Export toolchain paths
     export PATH="${PATH}:$TOOLCHAIN/clang-r416183b/bin"
@@ -48,7 +48,7 @@ LOCALVERSION=$LOCALVERSION \
     make ${BUILD_OPTIONS} $TARGET_DEFCONFIG
 
     # Configure the kernel (GUI)
-    make ${BUILD_OPTIONS} menuconfig
+    # make ${BUILD_OPTIONS} menuconfig
 
     # Set the kernel configuration, Disable unnecessary features
     ./scripts/config --file out/.config \

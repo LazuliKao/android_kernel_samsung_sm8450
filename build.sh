@@ -2,44 +2,36 @@
 official_source="SM-S9080_CHN_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
-kernel_su_next_branch="next-susfs"
-susfs_branch="gki-android12-5.10"
 toolchains_root="$build_root/toolchains"
-function clean() {
-    rm -rf "$kernel_root"
-}
+kernel_su_next_branch="v1.0.8"
+susfs_branch="gki-android12-5.10"
+container_name="sm8450-kernel-builder"
 
-custom_config_name="pineapple_gki_defconfig"
+kernel_build_script="scripts/build_kernel_5.10.sh"
+support_kernel="5.10" # only support 5.10 kernel
+kernel_source_link="https://opensource.samsung.com/uploadSearch?searchValue=SM-S90"
+
+custom_config_name="custom_gki_defconfig"
 custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
 
-_set_config() {
-    key=$1
-    value=$2
-    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
-    echo "Setting $key=$value (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1$value/" "$custom_config_file"
-}
-_set_config_quote() {
-    key=$1
-    value=$2
-    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
-    echo "Setting $key=\"$value\" (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1\"$value\"/" "$custom_config_file"
-}
-_get_config() {
-    key=$1
-    grep "^$key=" "$custom_config_file" | cut -d'=' -f2
-}
-_set_or_add_config() {
-    key=$1
-    value=$2
-    if grep -q "^$key=" "$custom_config_file"; then
-        _set_config "$key" "$value"
-    else
-        echo "$key=$value" >>"$custom_config_file"
-        echo "Added $key=$value to $custom_config_file"
-    fi
-}
+# Load utility functions
+lib_file="$build_root/scripts/lib.sh"
+if [ -f "$lib_file" ]; then
+    source "$lib_file"
+else
+    echo "[-] Error: Library file not found: $lib_file"
+    echo "[-] Please ensure lib.sh exists in the build directory"
+    exit 1
+fi
+core_file="$build_root/scripts/core.sh"
+if [ -f "$core_file" ]; then
+    source "$core_file"
+else
+    echo "[-] Error: Core file not found: $core_file"
+    echo "[-] Please ensure lib.sh exists in the build directory"
+    exit 1
+fi
+
 function prepare_toolchains() {
     mkdir -p "$toolchains_root"
     # init clang-r416183b
@@ -62,162 +54,31 @@ function prepare_toolchains() {
         cd - >/dev/null
     fi
 }
-function prepare_source() {
-    if [ ! -d "$kernel_root" ]; then
-        # extract the official source code
-        echo "[+] Extracting official source code..."
-        if [ ! -f "Kernel.tar.gz" ]; then
-            echo "[+] Kernel.tar.gz not found. Extracting from $official_source..."
-            if [ ! -f "$official_source" ]; then
-                echo "Please download the official source code from Samsung Open Source Release Center."
-                echo "link: https://opensource.samsung.com/uploadSearch?searchValue=SM-S90"
-                exit 1
-            fi
-            unzip -o -q "$official_source" "Kernel.tar.gz"
-        fi
-        # extract the kernel source code
-        local kernel_source_tar="Kernel.tar.gz"
-        echo "[+] Extracting kernel source code..."
-        mkdir -p "$kernel_root"
-        tar -xzf "$kernel_source_tar" -C "$kernel_root" --strip-components=3 "./kernel_platform/common"
-        if [ ! -d "$kernel_root" ]; then
-            echo "Kernel source code not found. Please check the official source code."
-            exit 1
-        fi
-        cd "$kernel_root"
-        echo "[+] Checking kernel version..."
-        local kernel_version=$(make kernelversion)
-        local kernel_kmi_version=$(echo $kernel_version | cut -d '.' -f 1-2)
-        echo "[+] Kernel version: $kernel_version, KMI version: $kernel_kmi_version"
-        # only support 5.10
-        if [ "$kernel_kmi_version" != "5.10" ]; then
-            echo "Kernel version is not 5.10. Please check the official source code."
-            exit 1
-        fi
-        echo "[+] Setting up permissions..."
-        chmod 777 -R "$kernel_root"
-        echo "[+] Kernel source code extracted successfully."
-    fi
-}
-function extract_kernel_config() {
-    cd "$build_root"
-    local tools_dir="$build_root/tools"
-    if [ ! -d "$tools_dir" ]; then
-        mkdir "$tools_dir"
-    fi
-    local kptools="$tools_dir/kptools-linux"
-    # if kptools-linux not exists, download it
-    if [ ! -f "$kptools" ]; then
-        echo "kptools-linux not found, downloading..."
-        wget https://github.com/bmax121/KernelPatch/releases/latest/download/kptools-linux -O "$kptools"
-        chmod +x "$kptools"
-    fi
-    if [ -f "boot.img.lz4" ]; then
-        # use lz4 to decompress it
-        lz4 -d -f boot.img.lz4 boot.img
-    else
-        if [ -f "boot.img" ]; then
-            echo "boot.img already exists, skipping decompression."
-        else
-            echo "[-] boot.img not found."
-            echo "[-] boot.img.lz4 not found, please put it in the current directory."
-            echo "     Where to get boot.img?"
-            echo "     - Downlaod the samsung firmware match your phone, extract it, and extract the boot.img.lz4 from the 'AP_...tar.md5'"
-            exit 1
-        fi
-    fi
-    echo "[+] boot.img decompressed successfully."
-    # extract official kernel config from boot.img
-    "$kptools" -i boot.img -f >boot.img.build.conf
-    echo "[+] Kernel config extracted successfully."
-    # see the kernel version of official kernel
-    echo "[+] Kernel version of official kernel:"
-    "$kptools" -i boot.img -d | head -n 3
-    # copy the extracted kernel config to the kernel source and build using it
-    echo "[+] Copying kernel config to the kernel source..."
-    tail -n +2 boot.img.build.conf >"$custom_config_file"
-    echo "[+] Kernel config updated successfully."
-    echo "[+] Kernel config file: $custom_config_file"
-    echo "[+] Copying stock boot.img to the kernel source..."
-    local stock_boot_img="$kernel_root/stock"
-    if [ ! -d "$stock_boot_img" ]; then
-        mkdir "$stock_boot_img"
-    fi
-    cp boot.img "$stock_boot_img"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to copy stock boot.img."
-        exit 1
-    fi
-    echo "[+] Stock boot.img copied successfully."
-    # https://github.com/ravindu644/Android-Kernel-Tutorials/?tab=readme-ov-file#02-fix-theres-an-internal-problem-with-your-device-issue
-    cd "$kernel_root"
-    echo "[+] Copy stock_config to kernel source..."
-    tail -n +2 "$build_root/boot.img.build.conf" >"$kernel_root/arch/arm64/configs/stock_defconfig"
-    echo "[+] Fix: 'There's an internal problem with your device.' issue."
-    # $(obj)/config_data.gz: .*
-    # $(obj)/config_data.gz: arch/arm64/configs/stock_defconfig FORCE
-    sed -i 's/$(obj)\/config_data\.gz: .*/$(obj)\/config_data\.gz: arch\/arm64\/configs\/stock_defconfig FORCE/' "$kernel_root/kernel/Makefile"
-}
-function add_kernelsu_next() {
-    echo "[+] Adding KernelSU Next..."
-    cd "$kernel_root"
-    curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s "$kernel_su_next_branch"
-    cd "$build_root"
-    echo "[+] KernelSU Next added successfully."
-}
+
 function __fix_patch() {
-    cp "$build_root/kernel_patches/fix_patch.patch" "$kernel_root"
     echo "[+] Fixing patch..."
     cd "$kernel_root"
-    patch -p1 -l <fix_patch.patch
+    _apply_patch_strict "fix_patch.patch"
     if [ $? -ne 0 ]; then
         echo "[-] Failed to apply fix patch."
         exit 1
     fi
     echo "[+] Fix patch applied successfully."
 }
+
 function __restore_fix_patch() {
     echo "[+] Restoring fix patch..."
-    cp "$build_root/kernel_patches/fix_patch_reverse.patch" "$kernel_root"
     cd "$kernel_root"
-    patch -p1 -l <fix_patch_reverse.patch
+    _apply_patch_strict "fix_patch_reverse.patch"
     if [ $? -ne 0 ]; then
         echo "[-] Failed to restore fix patch."
         exit 1
     fi
     echo "[+] Fix patch restored successfully."
 }
-function add_susfs() {
-    local susfs_dir="$build_root/susfs"
-    if [ ! -d "$susfs_dir" ]; then
-        echo "[+] Cloning susfs4ksu repository..."
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth 1 -b "$susfs_branch" "$susfs_dir"
-    else
-        echo "[+] Updating susfs4ksu repository..."
-        cd "$susfs_dir"
-        git fetch origin "$susfs_branch"
-        git checkout "$susfs_branch"
-        git pull origin "$susfs_branch"
-        cd "$build_root"
-    fi
-    if [ ! -d "$susfs_dir" ]; then
-        echo "Failed to clone susfs4ksu repository."
-        exit 1
-    fi
-    echo "[+] SuSFS4ksu repository cloned successfully."
-    echo "[+] Copying SuSFS source code..."
-    cp "$susfs_dir/kernel_patches/50_add_susfs_in_$susfs_branch.patch" "$kernel_root"
-    if [ -d "$susfs_dir/kernel_patches/fs" ]; then
-        cp -r "$susfs_dir/kernel_patches/fs/"* "$kernel_root/fs/"
-    else
-        echo "[-] Warning: $susfs_dir/kernel_patches/fs directory not found"
-    fi
 
-    if [ -d "$susfs_dir/kernel_patches/include" ]; then
-        cp -r "$susfs_dir/kernel_patches/include/"* "$kernel_root/include/"
-    else
-        echo "[-] Warning: $susfs_dir/kernel_patches/include directory not found"
-    fi
+function add_susfs() {
+    add_susfs_prepare
     echo "[+] Applying SuSFS patches..."
     cd "$kernel_root"
     __fix_patch # remove some samsung's changes, then susfs can be applied
@@ -234,108 +95,37 @@ function add_susfs() {
     __restore_fix_patch # restore removed samsung's changes
     echo "[+] SuSFS added successfully."
 }
-function fix_kernel_su_next_susfs() {
-    echo "[+] Applying kernel config tweaks fix susfs with ksun..."
-    _set_or_add_config CONFIG_KSU_SUSFS_SUS_SU n
-    echo "[+] Fix building KernelSU Next with SuSFS..."
-    cd "$kernel_root"
-    patch -p1 <"$build_root/kernel_patches/fix_ksun_with_susfs.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix patch for KernelSU Next with SuSFS."
-        exit 1
-    fi
-    echo "[+] KernelSU Next with SuSFS fix applied successfully."
-}
-function fix_driver_check() {
-    # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
-    cd "$build_root"
-    cp "$build_root/kernel_patches/driver_fix.patch" "$kernel_root"
-    cd "$kernel_root"
-    patch -p1 <driver_fix.patch
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply driver fix patch."
-        exit 1
-    fi
 
-    #Force Load Kernel Modules
-    _set_or_add_config CONFIG_MODULES y
-    _set_or_add_config CONFIG_MODULE_FORCE_LOAD y
-    _set_or_add_config CONFIG_MODULE_UNLOAD y
-    _set_or_add_config CONFIG_MODULE_FORCE_UNLOAD y
-    _set_or_add_config CONFIG_MODVERSIONS y
-    _set_or_add_config CONFIG_MODULE_SRCVERSION_ALL n
-    _set_or_add_config CONFIG_MODULE_SIG n
-    _set_or_add_config CONFIG_MODULE_COMPRESS n
-    _set_or_add_config CONFIG_TRIM_UNUSED_KSYMS n
-
-    echo "[+] Driver fix patch applied successfully."
-}
-function fix_samsung_securities() {
-    # Disable Samsung Securities
-    _set_or_add_config CONFIG_UH n
-    _set_or_add_config CONFIG_UH_RKP n
-    _set_or_add_config CONFIG_UH_LKMAUTH n
-    _set_or_add_config CONFIG_UH_LKM_BLOCK n
-    _set_or_add_config CONFIG_RKP_CFP_JOPP n
-    _set_or_add_config CONFIG_RKP_CFP n
-    _set_or_add_config CONFIG_SECURITY_DEFEX n
-    _set_or_add_config CONFIG_PROCA n
-    _set_or_add_config CONFIG_FIVE n
-}
-function add_build_script() {
-    echo "[+] Adding build script..."
-    cp "$build_root/build_kernel_5.10.sh" "$kernel_root/build.sh"
-    sed -i "s/gki_defconfig/$custom_config_name/" "$kernel_root/build.sh"
-    chmod +x "$kernel_root/build.sh"
-    echo "[+] Build script added successfully."
-}
-function build_container() {
-    echo "[+] Building Docker container for kernel compilation..."
-
-    # Check if Docker is installed
-    if ! command -v docker &>/dev/null; then
-        echo "[-] Docker is not installed. Please install Docker first."
-        echo "    Visit https://docs.docker.com/engine/install/ for installation instructions."
-        return 1
-    fi
-
-    # Build Docker image from Dockerfile
-    cd "$build_root"
-    docker build -t sm8450-kernel-builder .
-
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to build Docker image."
-        return 1
-    fi
-
-    echo "[+] Docker image 'sm8450-kernel-builder' built successfully."
-    echo "[+] You can now use the container to build the kernel."
-    echo ""
-    echo "To run a one-time container and build the kernel, use:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8450-kernel-builder /workspace/build.sh"
-    echo ""
-    echo "This will mount your current directory to /workspace in the container"
-    echo "and run the build.sh script inside the container."
-    echo ""
-    echo "If you want to open a shell in the container for manual operations:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8450-kernel-builder /bin/bash"
-
-    return 0
+function print_usage() {
+    echo "Usage: $0 [container|clean|prepare]"
+    echo "  container: Build the Docker container for kernel compilation"
+    echo "  clean: Clean the kernel source directory"
+    echo "  prepare: Prepare the kernel source directory"
+    echo "  (default): Run the main build process"
 }
 
 function main() {
-    if [ "$1" = "container" ]; then
-        build_container
-        return $?
+    echo "[+] Starting kernel build process..."
+
+    # Validate environment before proceeding
+    if ! validate_environment; then
+        echo "[-] Environment validation failed"
+        exit 1
     fi
 
-    clean
     prepare_toolchains
+    clean
     prepare_source
     extract_kernel_config
+
+    show_config_summary
+
     add_kernelsu_next
     add_susfs
     fix_kernel_su_next_susfs
+    apply_kernelsu_manual_hooks_for_next
+    apply_wild_kernels_config
+    apply_wild_kernels_fix_for_next
     fix_driver_check
     fix_samsung_securities
     add_build_script
@@ -344,14 +134,55 @@ function main() {
     echo "[+] Please 'cd $kernel_root'"
     echo "[+] Run the build script with ./build.sh"
     echo ""
-    echo "To build using Docker container instead:"
-    echo "./build.sh container"
+
+    if docker images | grep -q "$container_name"; then
+        print_docker_usage
+    else
+        echo "To build using Docker container instead:"
+        echo "./build.sh container"
+    fi
 }
 
-# If the first argument is "container", only build the container
-if [ "$1" = "container" ]; then
+case "${1:-}" in
+"container")
     build_container
     exit $?
-else
+    ;;
+"clean")
+    clean
+    echo "[+] Cleaned kernel source directory."
+    exit 0
+    ;;
+"prepare")
+    prepare_source
+    echo "[+] Prepared kernel source directory."
+    exit 0
+    ;;
+"?" | "help" | "--help" | "-h")
+    print_usage
+    exit 0
+    ;;
+"kernel")
     main
-fi
+    # build container if not exists
+    if ! docker images | grep -q "$container_name"; then
+        build_container
+        if [ $? -ne 0 ]; then
+            echo "[-] Failed to build Docker container."
+            exit 1
+        fi
+    fi
+    echo "[+] Building kernel using Docker container..."
+    docker run --rm -it -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
+
+    exit 0
+    ;;
+"")
+    main
+    ;;
+*)
+    echo "[-] Unknown option: $1"
+    print_usage
+    exit 1
+    ;;
+esac
