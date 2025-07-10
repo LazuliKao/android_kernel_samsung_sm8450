@@ -5,6 +5,7 @@ export ARCH=arm64
 export KBUILD_BUILD_USER="@lk"
 LOCALVERSION=-android12-lk
 TARGET_DEFCONFIG=${1:-gki_defconfig}
+DEVICE_NAME_LIST="r0q,g0q,b0q"
 
 function prepare_toolchain() {
     # Install the requirements for building the kernel when running the script for the first time
