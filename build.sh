@@ -6,15 +6,15 @@ kernel_root="$build_root/kernel_source"
 cache_root="${CACHE_ROOT:-$build_root/cache}"
 
 # == SukiSU-Ultra + SuSFS ==
-ksu_add_susfs=true
-ksu_platform="sukisu-ultra"
-ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-ksu_branch="susfs-main"
-# == KernelSU-Next with SuSFS ==
 # ksu_add_susfs=true
-# ksu_platform="ksu-next"
-# ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-# ksu_branch="next-susfs"
+# ksu_platform="sukisu-ultra"
+# ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
+# ksu_branch="susfs-main"
+# == KernelSU-Next with SuSFS ==
+ksu_add_susfs=true
+ksu_platform="ksu-next"
+ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
+ksu_branch="next-susfs"
 
 susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
 susfs_branch="gki-android12-5.10"
@@ -30,8 +30,8 @@ source "$build_root/scripts/utils/lib.sh"
 source "$build_root/scripts/utils/core.sh"
 config_hash=$(generate_config_hash "${ksu_branch}" "${susfs_branch}")
 cache_config_dir="$cache_root/config_${config_hash}"
-# Toolchains are shared across all configurations
-toolchains_root="$cache_root/toolchains"
+cache_platform_dir="$cache_root/sm8450"
+toolchains_root="$cache_platform_dir/toolchains"
 
 function download_toolchains() {
     mkdir -p "$toolchains_root"
@@ -135,15 +135,13 @@ function main() {
 
     show_config_summary
 
-    add_kernelsu_next
-    apply_kernelsu_manual_hooks_for_next
+    add_kernelsu
+    apply_kernelsu_manual_hooks
     if [ "$ksu_add_susfs" = true ]; then
         add_susfs
-        if [ "$ksu_platform" = "ksu-next" ]; then
-            fix_kernel_su_next_susfs
-            apply_wild_kernels_fix_for_next
-        fi
+        [ "$ksu_platform" = "ksu-next" ] && fix_kernel_su_next_susfs
     fi
+    [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     apply_wild_kernels_config
     fix_driver_check
     fix_samsung_securities
