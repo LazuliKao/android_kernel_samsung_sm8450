@@ -3,21 +3,6 @@ official_source="SM-S9080_CHN_14_Opensource.zip" # change it with you downloaded
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 
-cache_root="${CACHE_ROOT:-$build_root/cache}"
-
-# == SukiSU-Ultra + SuSFS ==
-# ksu_add_susfs=true
-# ksu_platform="sukisu-ultra"
-# ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-# ksu_branch="susfs-main"
-# == KernelSU-Next with SuSFS ==
-ksu_add_susfs=true
-ksu_platform="ksu-next"
-ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-ksu_branch="next-susfs"
-
-susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
-susfs_branch="gki-android12-5.10"
 container_name="sm8450-kernel-builder"
 
 kernel_build_script="scripts/build_kernel_5.10.sh"
@@ -25,9 +10,12 @@ support_kernel="5.10" # only support 5.10 kernel
 kernel_source_link="https://opensource.samsung.com/uploadSearch?searchValue=SM-S90"
 
 custom_config_name="custom_gki_defconfig"
-
+source "$build_root/scripts/utils/config.sh"
+_auto_load_config
 source "$build_root/scripts/utils/lib.sh"
 source "$build_root/scripts/utils/core.sh"
+
+cache_root=$(realpath ${cache_root:-./cache})
 config_hash=$(generate_config_hash "${ksu_branch}" "${susfs_branch}")
 cache_config_dir="$cache_root/config_${config_hash}"
 cache_platform_dir="$cache_root/sm8450"
@@ -190,7 +178,7 @@ case "${1:-}" in
         fi
     fi
     echo "[+] Building kernel using Docker container..."
-    docker run --rm -it -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
+    docker run --rm -i -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
 
     exit 0
     ;;
