@@ -130,6 +130,7 @@ function main() {
         [ "$ksu_platform" = "ksu-next" ] && fix_kernel_su_next_susfs
     fi
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
+    [ "$ksu_platform" = "sukisu-ultra" ] && apply_suki_patches
     apply_wild_kernels_config
     fix_driver_check
     fix_samsung_securities
