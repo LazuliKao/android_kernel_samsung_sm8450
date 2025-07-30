@@ -590,6 +590,29 @@ fix_samsung_securities() {
     _set_or_add_config CONFIG_CFP_ROPP n
 }
 
+__save_source_details() {
+    local source_details_file="$kernel_root/source_details.config"
+    echo "[+] Saving source details to $source_details_file..."
+    # dump all environment variables
+    {
+        echo "CONFIG_FILE=$CONFIG_FILE"
+        echo "KERNEL_SOURCE_URL=$KERNEL_SOURCE_URL"
+        echo "KERNEL_BOOT_IMG_URL=$KERNEL_BOOT_IMG_URL"
+        echo "TOOLCHAINS_URL=$TOOLCHAINS_URL"
+        echo "ksu_platform=$ksu_platform"
+        echo "ksu_install_scripts=$ksu_install_scripts"
+        echo "ksu_branch=$ksu_branch"
+        echo "ksu_add_susfs=$ksu_add_susfs"
+        echo "susfs_repo=$susfs_repo"
+        echo "susfs_branch=$susfs_branch"
+    } >"$source_details_file"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to save source details."
+        exit 1
+    fi
+    echo "[+] Source details saved successfully."
+}
+
 add_build_script() {
     echo "[+] Adding build script..."
     cp "$build_root/$kernel_build_script" "$kernel_root/build.sh"
@@ -598,6 +621,7 @@ add_build_script() {
     chmod +x "$kernel_root/build.sh"
     chmod +x "$kernel_root/repack.sh"
     echo "[+] Build script added successfully."
+    __save_source_details
 }
 
 print_docker_usage() {
