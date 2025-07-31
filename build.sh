@@ -132,6 +132,8 @@ function main() {
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     [ "$ksu_platform" = "sukisu-ultra" ] && apply_suki_patches
     apply_wild_kernels_config
+    allow_disable_selinux
+    change_kernel_name
     fix_driver_check
     fix_samsung_securities
     add_build_script
