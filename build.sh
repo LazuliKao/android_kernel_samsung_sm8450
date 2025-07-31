@@ -127,7 +127,7 @@ function main() {
     apply_kernelsu_manual_hooks
     if [ "$ksu_add_susfs" = true ]; then
         add_susfs
-        [ "$ksu_platform" = "ksu-next" ] && fix_kernel_su_next_susfs
+        fix_kernel_su_next_susfs
     fi
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     [ "$ksu_platform" = "sukisu-ultra" ] && apply_suki_patches
