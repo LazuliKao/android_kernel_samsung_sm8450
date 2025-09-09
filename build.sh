@@ -27,7 +27,7 @@ function download_toolchains() {
     # init clang-r416183b
     if [ ! -d "$toolchains_root/clang-r416183b" ]; then
         echo -e "\n[INFO] Cloning Clang-r416183b...\n"
-        mkdir -p "$toolchains_root/clang-r416183b"
+        mkdir -p -m 777 "$toolchains_root/clang-r416183b"
         cd "$toolchains_root/clang-r416183b"
         curl -LO "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r416183b.tar.gz"
         tar -xf clang-r416183b.tar.gz
@@ -37,7 +37,7 @@ function download_toolchains() {
     # init arm gnu toolchain
     if [ ! -d "$toolchains_root/gcc" ]; then
         echo -e "\n[INFO] Cloning ARM GNU Toolchain\n"
-        mkdir -p "$toolchains_root/gcc"
+        mkdir -p -m 777 "$toolchains_root/gcc"
         cd "$toolchains_root/gcc"
         curl -LO "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz"
         tar -xf arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
